@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import * as cartUtils from '../utils/cart';
 
 const CartContext = createContext(null);
@@ -28,35 +28,31 @@ export function CartProvider({ children }) {
     setCart(emptyCart);
   }, []);
 
-  const cartTotal = cartUtils.getCartTotal(cart);
-  const cartCount = cartUtils.getCartCount(cart);
+  // Memoize derived values so they don't recalculate on every render
+  const cartTotal = useMemo(() => cartUtils.getCartTotal(cart), [cart]);
+  const cartCount = useMemo(() => cartUtils.getCartCount(cart), [cart]);
 
-  const toggleCart = useCallback(() => {
-    setIsCartOpen((prev) => !prev);
-  }, []);
+  const toggleCart = useCallback(() => setIsCartOpen((prev) => !prev), []);
+  const closeCart = useCallback(() => setIsCartOpen(false), []);
 
-  const closeCart = useCallback(() => {
-    setIsCartOpen(false);
-  }, []);
-
-  return (
-    <CartContext.Provider
-      value={{
-        cart,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        cartTotal,
-        cartCount,
-        isCartOpen,
-        toggleCart,
-        closeCart,
-      }}
-    >
-      {children}
-    </CartContext.Provider>
+  // Memoize the context value to prevent unnecessary re-renders of consumers
+  const value = useMemo(
+    () => ({
+      cart,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      cartTotal,
+      cartCount,
+      isCartOpen,
+      toggleCart,
+      closeCart,
+    }),
+    [cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount, isCartOpen, toggleCart, closeCart]
   );
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
 export function useCart() {

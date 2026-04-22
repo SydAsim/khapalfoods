@@ -17,14 +17,16 @@ export default function HeroSection() {
           <path d="M0 0 L100 0 L100 5 L5 5 L5 100 L0 100 Z" fill="currentColor" opacity="0.5" />
         </svg>
 
-        {/* Floating gradient orbs */}
+        {/* Floating gradient orbs — only animate when section is visible */}
         <motion.div
-          animate={{ y: [-10, 10, -10] }}
+          whileInView={{ y: [-10, 10, -10] }}
+          viewport={{ once: false }}
           transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute top-1/4 right-1/4 w-64 h-64 bg-gold/5 rounded-full blur-3xl"
         />
         <motion.div
-          animate={{ y: [10, -10, 10] }}
+          whileInView={{ y: [10, -10, 10] }}
+          viewport={{ once: false }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute bottom-1/4 left-1/4 w-48 h-48 bg-sage-green/5 rounded-full blur-3xl"
         />
@@ -146,6 +148,10 @@ export default function HeroSection() {
                   alt="Khapal Foods Energy Balls — Handcrafted with premium dry fruits and seeds"
                   className="w-full h-full object-cover"
                   loading="eager"
+                  fetchpriority="high"
+                  decoding="async"
+                  width="600"
+                  height="600"
                 />
               </div>
 

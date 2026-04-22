@@ -1,10 +1,18 @@
+import { lazy, Suspense } from 'react';
 import HeroSection from '../components/HeroSection';
-import ProductCard from '../components/ProductCard';
-import BenefitsSection from '../components/BenefitsSection';
-import IngredientsSection from '../components/IngredientsSection';
-import TrustSection from '../components/TrustSection';
 import { products } from '../utils/products';
 import { motion } from 'framer-motion';
+import ProductCard from '../components/ProductCard';
+
+// Lazy-load below-fold sections — they are never needed until user scrolls
+const BenefitsSection = lazy(() => import('../components/BenefitsSection'));
+const IngredientsSection = lazy(() => import('../components/IngredientsSection'));
+const TrustSection = lazy(() => import('../components/TrustSection'));
+
+// Null fallback for below-fold sections keeps height stable
+const SectionLoader = () => (
+  <div className="py-20 md:py-28 bg-cream" aria-hidden="true" />
+);
 
 export default function Home() {
   return (
@@ -40,9 +48,15 @@ export default function Home() {
         </div>
       </section>
 
-      <BenefitsSection />
-      <IngredientsSection />
-      <TrustSection />
+      <Suspense fallback={<SectionLoader />}>
+        <BenefitsSection />
+      </Suspense>
+      <Suspense fallback={<SectionLoader />}>
+        <IngredientsSection />
+      </Suspense>
+      <Suspense fallback={<SectionLoader />}>
+        <TrustSection />
+      </Suspense>
     </>
   );
 }

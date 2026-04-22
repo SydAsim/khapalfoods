@@ -23,6 +23,9 @@ export default function ProductCard({ product, index }) {
             alt={product.name}
             className="w-full h-full object-cover"
             loading="lazy"
+            decoding="async"
+            width="600"
+            height="450"
           />
           {/* Badges */}
           <div className="absolute top-4 left-4 flex flex-col gap-2">

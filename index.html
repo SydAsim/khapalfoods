@@ -13,13 +13,29 @@
     content="Premium handcrafted energy balls and superfood mixes made from 100% natural ingredients." />
   <meta property="og:type" content="website" />
   <title>Khapal Foods</title>
-  <link rel="icon" type="image/png" href="/images/logo.png" />
-  <link rel="apple-touch-icon" href="/images/logo.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/images/favicon.png" />
+  <link rel="apple-touch-icon" href="/images/favicon.png" />
+
+  <!-- Preload the LCP hero image so the browser fetches it immediately -->
+  <link rel="preload" as="image" href="/images/hero-product.png" fetchpriority="high" />
+
+  <!-- Google Fonts: preconnect first, then load async (non-render-blocking) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Use media="print" trick to load fonts without blocking render -->
   <link
-    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet" />
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+    media="print"
+    onload="this.media='all'" />
+  <!-- Fallback for no-JS -->
+  <noscript>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet" />
+  </noscript>
 </head>
 
 <body>
