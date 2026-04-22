@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="30" fill="#FDF6EC" stroke="#C8A45A" stroke-width="2"/>
+  <text x="32" y="28" text-anchor="middle" font-family="serif" font-weight="bold" font-size="22" fill="#3E2723">K</text>
+  <text x="32" y="46" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#4A7C59" font-weight="600">FOODS</text>
+  <path d="M28 10 Q32 4 36 10" fill="#4A7C59" opacity="0.8"/>
+  <ellipse cx="32" cy="7" rx="2" ry="3" fill="#4A7C59" opacity="0.6"/>
+</svg>
