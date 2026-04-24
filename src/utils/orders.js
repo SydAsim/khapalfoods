@@ -2,7 +2,7 @@
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbweSYcd-q8lOWATR84rSJP1SJcEPoF-QUltE_JNMD3yNu3T080D14gVoYBhb_JgKGG5/exec';
 
 // ⚠️ Backup Google Apps Script Web App URL (Paste your second script URL here)
-const GOOGLE_SCRIPT_BACKUP_URL = '';
+const GOOGLE_SCRIPT_BACKUP_URL = 'https://script.google.com/macros/s/AKfycbySr5uZBKiWPTk_bfZoyl-LLREYa17OU_swhokp76CuTfRIqUFD3SQdvl8PyuQTwnyWJA/exec';
 
 function getNextOrderNumber() {
   const last = parseInt(localStorage.getItem('kf_order_counter') || '0', 10);
