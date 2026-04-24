@@ -3,7 +3,11 @@ export const products = [
     id: 'energy-balls',
     name: 'Energy Balls',
     subtitle: 'Dry Fruits & Seed Mix — Pinniyan',
-    price: 1900,
+    variants: [
+      { id: '1-kg', name: '1 Kg', price: 3500 },
+      { id: 'half-kg', name: 'Half Kg (500g)', price: 2000 },
+    ],
+    price: 2000, // Used for 'starting at' or default display
     description:
       'Handcrafted energy balls made with premium dry fruits and seeds. A wholesome blend of almonds, walnuts, peanuts, and nutritious seeds for a natural energy boost.',
     image: '/images/energy-balls.png',
@@ -23,7 +27,11 @@ export const products = [
     id: 'panjiri',
     name: 'Panjiri',
     subtitle: 'Traditional Superfood Mix',
-    price: 1500,
+    variants: [
+      { id: '1-kg', name: '1 Kg', price: 2700 },
+      { id: 'half-kg', name: 'Half Kg (500g)', price: 2000 },
+    ],
+    price: 2000,
     description:
       'A traditional superfood mix crafted with the finest natural ingredients. Rich in nutrients, this powerhouse blend supports energy, immunity, and overall wellness.',
     image: '/images/panjiri.png',

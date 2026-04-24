@@ -10,6 +10,7 @@ import Home from './pages/Home';
 // Lazy-load secondary pages — they are only needed when navigated to
 const Checkout = lazy(() => import('./pages/Checkout'));
 const Success = lazy(() => import('./pages/Success'));
+const ProductDetails = lazy(() => import('./pages/ProductDetails'));
 
 // Minimal fallback — avoids layout shift
 function PageLoader() {
@@ -29,6 +30,7 @@ function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/success" element={<Success />} />
             </Routes>
