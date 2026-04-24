@@ -35,6 +35,17 @@ export default function ProductDetails() {
       price: selectedVariant.price,
       image: product.image,
     });
+    
+    // Fire Meta Pixel AddToCart Event
+    if (window.fbq) {
+      window.fbq('track', 'AddToCart', {
+        content_ids: [product.id],
+        content_name: `${product.name} (${selectedVariant.name})`,
+        content_type: 'product',
+        value: selectedVariant.price,
+        currency: 'PKR'
+      });
+    }
   };
 
   return (

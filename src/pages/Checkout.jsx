@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import CheckoutForm from '../components/CheckoutForm';
@@ -5,6 +6,16 @@ import { Link } from 'react-router-dom';
 
 export default function Checkout() {
   const { cart, cartTotal } = useCart();
+
+  useEffect(() => {
+    if (window.fbq && cart.length > 0) {
+      window.fbq('track', 'InitiateCheckout', {
+        value: cartTotal,
+        currency: 'PKR',
+        num_items: cart.length
+      });
+    }
+  }, [cartTotal, cart.length]);
 
   return (
     <div className="min-h-screen bg-cream pt-24 pb-16">

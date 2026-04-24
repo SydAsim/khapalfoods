@@ -8,7 +8,17 @@ export default function Success() {
   useEffect(() => {
     const lastOrder = sessionStorage.getItem('lastOrder');
     if (lastOrder) {
-      setOrder(JSON.parse(lastOrder));
+      const parsedOrder = JSON.parse(lastOrder);
+      setOrder(parsedOrder);
+      
+      // Fire Meta Pixel Purchase Event
+      if (window.fbq) {
+        window.fbq('track', 'Purchase', {
+          value: parsedOrder.totalAmount,
+          currency: 'PKR'
+        });
+      }
+      
       sessionStorage.removeItem('lastOrder');
     }
   }, []);
