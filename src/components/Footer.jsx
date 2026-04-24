@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import VisitorCounter from './VisitorCounter';
 
 export default function Footer() {
   return (
@@ -85,8 +86,9 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-12 pt-6 text-center text-xs" style={{ borderTop: '1px solid rgba(253,246,236,0.1)', color: 'rgba(253,246,236,0.4)' }}>
+        <div className="mt-12 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs" style={{ borderTop: '1px solid rgba(253,246,236,0.1)', color: 'rgba(253,246,236,0.4)' }}>
           <p>© {new Date().getFullYear()} Khapal Foods. All rights reserved. Made with ❤️</p>
+          <VisitorCounter />
         </div>
       </div>
     </footer>

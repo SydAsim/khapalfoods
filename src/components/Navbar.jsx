@@ -49,6 +49,11 @@ export default function Navbar() {
             : 'bg-transparent'
         }`}
       >
+        {/* Announcement Bar */}
+        <div className="bg-gold text-white text-center py-1.5 px-4 text-xs sm:text-sm font-medium tracking-wide shadow-sm">
+          🎉 Free Delivery on the first 100 orders!
+        </div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo */}

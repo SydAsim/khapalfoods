@@ -157,7 +157,7 @@ export default function CartDrawer() {
                   </span>
                 </div>
                 <p className="text-xs mb-4" style={{ color: 'rgba(92,61,46,0.5)' }}>
-                  Shipping will be calculated at checkout
+                  Delivery is Free!
                 </p>
                 <motion.button
                   whileHover={{ scale: 1.02 }}

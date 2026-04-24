@@ -98,8 +98,8 @@ export default function Checkout() {
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span style={{ color: 'rgba(92,61,46,0.6)' }}>Shipping</span>
-                      <span className="text-sage-green font-medium">Calculated later</span>
+                      <span style={{ color: 'rgba(92,61,46,0.6)' }}>Delivery</span>
+                      <span className="text-sage-green font-medium">Free</span>
                     </div>
                     <div className="border-t border-beige pt-3 mt-3">
                       <div className="flex justify-between">
