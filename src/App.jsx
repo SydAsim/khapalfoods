@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import WhatsAppButton from './components/WhatsAppButton';
 
 // Eagerly load Home (critical path)
 import Home from './pages/Home';
@@ -36,6 +37,7 @@ function App() {
             </Routes>
           </Suspense>
         </main>
+        <WhatsAppButton />
         <Footer />
       </div>
     </CartProvider>
