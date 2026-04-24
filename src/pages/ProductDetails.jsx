@@ -86,7 +86,7 @@ export default function ProductDetails() {
                 <h1 className="font-display text-3xl font-bold text-rich-brown">
                   {product.name}
                 </h1>
-                <div className="font-display text-2xl font-bold text-gold">
+                <div className="font-display text-2xl font-bold text-rich-brown">
                   ₨{selectedVariant?.price.toLocaleString()}
                 </div>
               </div>
@@ -167,7 +167,7 @@ export default function ProductDetails() {
                     </div>
                     <div className="pr-4 text-right">
                       <div className="text-[10px] text-warm-brown/70 font-medium uppercase tracking-wide">Subtotal</div>
-                      <div className="text-lg font-bold text-gold">
+                      <div className="text-lg font-bold text-rich-brown">
                         ₨{(selectedVariant.price * cartItem.quantity).toLocaleString()}
                       </div>
                     </div>

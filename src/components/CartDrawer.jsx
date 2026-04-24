@@ -100,7 +100,7 @@ export default function CartDrawer() {
                           <h4 className="font-display font-bold text-rich-brown truncate">
                             {item.name}
                           </h4>
-                          <p className="text-gold font-semibold text-sm mt-1">
+                          <p className="text-rich-brown font-semibold text-sm mt-1">
                             ₨{item.price.toLocaleString()}
                           </p>
                           <div className="flex items-center justify-between mt-3">

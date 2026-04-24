@@ -50,7 +50,7 @@ export default function ProductCard({ product, index }) {
                 </p>
               </div>
               <div className="text-right flex-shrink-0">
-                <div className="font-display text-xl font-bold text-gold">
+                <div className="font-display text-xl font-bold text-rich-brown">
                   From ₨{product.price.toLocaleString()}
                 </div>
               </div>

@@ -104,7 +104,7 @@ export default function Checkout() {
                     <div className="border-t border-beige pt-3 mt-3">
                       <div className="flex justify-between">
                         <span className="font-semibold text-rich-brown">Total</span>
-                        <span className="font-display text-2xl font-bold text-gold">
+                        <span className="font-display text-2xl font-bold text-rich-brown">
                           ₨{cartTotal.toLocaleString()}
                         </span>
                       </div>
