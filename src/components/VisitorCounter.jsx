@@ -5,27 +5,33 @@ export default function VisitorCounter() {
   const [visitorCount, setVisitorCount] = useState(null);
 
   useEffect(() => {
-    // Check if THIS unique user has visited before
-    const hasVisited = localStorage.getItem('kf_unique_visitor');
-    
-    // Use a local count starting at 0
-    let currentGlobalCount = parseInt(localStorage.getItem('kf_global_count') || '0', 10);
+    /**
+     * Security Fix: 
+     * To maintain data integrity and prevent client-side manipulation, 
+     * we move the visitor counting logic to a secure server-side endpoint.
+     * The server should handle uniqueness (e.g., via session cookies or IP hashing)
+     * and increment the global count in a database using atomic operations.
+     */
+    const syncVisitorCount = async () => {
+      try {
+        const response = await fetch('/api/visitor-count', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-    if (!hasVisited) {
-      // New unique visitor!
-      localStorage.setItem('kf_unique_visitor', 'true');
-      currentGlobalCount += 1;
-      localStorage.setItem('kf_global_count', currentGlobalCount.toString());
-      setVisitorCount(currentGlobalCount);
-    } else {
-      // Returning visitor
-      if (currentGlobalCount === 0) {
-        // If somehow they are marked as visited but count is 0, ensure it's at least 1
-        currentGlobalCount = 1;
-        localStorage.setItem('kf_global_count', '1');
+        if (response.ok) {
+          const data = await response.json();
+          setVisitorCount(data.count);
+        }
+      } catch (error) {
+        // Fallback or silent error handling for analytics
+        console.error('Visitor count synchronization failed');
       }
-      setVisitorCount(currentGlobalCount);
-    }
+    };
+
+    syncVisitorCount();
   }, []);
 
   if (visitorCount === null) return null;
