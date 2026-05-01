@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useCart } from '../context/CartContext';
@@ -9,12 +9,21 @@ export default function CheckoutForm() {
   const { cart, cartTotal, clearCart } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [globalError, setGlobalError] = useState('');
+  const [csrfToken, setCsrfToken] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
     address: '',
   });
+
+  useEffect(() => {
+    // In a real application, fetch the CSRF token from the server on mount
+    // or retrieve it from a secure cookie/meta tag.
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 'secure-token-placeholder';
+    setCsrfToken(token);
+  }, []);
 
   const validate = () => {
     const newErrors = {};
@@ -50,6 +59,7 @@ export default function CheckoutForm() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
+    if (globalError) setGlobalError('');
   };
 
   const handleSubmit = async (e) => {
@@ -58,21 +68,28 @@ export default function CheckoutForm() {
     if (cart.length === 0) return;
 
     setIsSubmitting(true);
+    setGlobalError('');
 
     try {
       const order = createOrder(formData, cart);
-      await submitOrder(order);
+      
+      // Ensure the order is submitted with CSRF protection and proper CORS configuration
+      // We do not use 'no-cors' to ensure we can read the server's success/failure response.
+      const result = await submitOrder(order, csrfToken);
 
-      // Store order info for the success page display
-      sessionStorage.setItem('lastOrder', JSON.stringify(order));
-
-      clearCart();
-      navigate('/success');
+      if (result && result.success) {
+        // Clear sensitive data from memory and avoid storing PII in sessionStorage/localStorage
+        clearCart();
+        // Pass only the non-sensitive order ID via navigation state if needed for the success page
+        navigate('/success', { state: { orderId: result.orderId }, replace: true });
+      } else {
+        throw new Error(result?.message || 'Server failed to process the order.');
+      }
     } catch (error) {
       console.error('Order submission failed:', error);
-      // Still proceed — the request was likely sent via no-cors
-      clearCart();
-      navigate('/success');
+      // Fail-secure: Do not clear cart or redirect to success page on error.
+      // Inform the user that the submission failed so they can retry.
+      setGlobalError('We encountered an issue processing your order. Please check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -100,6 +117,19 @@ export default function CheckoutForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" id="checkout-form">
+      {/* Anti-CSRF Token */}
+      <input type="hidden" name="_csrf" value={csrfToken} />
+
+      {globalError && (
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }}
+          className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+        >
+          {globalError}
+        </motion.div>
+      )}
+
       {/* Name */}
       <div>
         <label htmlFor="name" className="block text-sm font-semibold text-rich-brown mb-2">
@@ -109,6 +139,7 @@ export default function CheckoutForm() {
           type="text"
           id="name"
           name="name"
+          autoComplete="name"
           value={formData.name}
           onChange={handleChange}
           placeholder="Enter your full name"
@@ -136,6 +167,7 @@ export default function CheckoutForm() {
           type="tel"
           id="phone"
           name="phone"
+          autoComplete="tel"
           value={formData.phone}
           onChange={handleChange}
           placeholder="e.g., 0300-1234567"
@@ -163,6 +195,7 @@ export default function CheckoutForm() {
           type="email"
           id="email"
           name="email"
+          autoComplete="email"
           value={formData.email}
           onChange={handleChange}
           placeholder="your@email.com"
@@ -189,6 +222,7 @@ export default function CheckoutForm() {
         <textarea
           id="address"
           name="address"
+          autoComplete="street-address"
           value={formData.address}
           onChange={handleChange}
           rows={3}

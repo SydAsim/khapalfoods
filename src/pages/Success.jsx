@@ -1,27 +1,73 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
+/**
+ * Success Component
+ * 
+ * Securely handles the post-purchase display. 
+ * Fixes:
+ * 1. PII exposure: Switched from sessionStorage to React Router location state (ephemeral memory).
+ * 2. Data validation: Implemented a strict sanitization schema to validate client-controlled data before rendering.
+ */
 export default function Success() {
   const [order, setOrder] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const lastOrder = sessionStorage.getItem('lastOrder');
-    if (lastOrder) {
-      const parsedOrder = JSON.parse(lastOrder);
-      setOrder(parsedOrder);
+    // We retrieve data from location state rather than sessionStorage. 
+    // This ensures PII is not persisted in a storage medium accessible to all scripts (XSS).
+    const rawOrder = location.state?.order;
+
+    if (!rawOrder) {
+      // If no order data exists in state, redirect to home to prevent direct access to PII-less success page
+      navigate('/', { replace: true });
+      return;
+    }
+
+    // Strict validation and sanitization of data from client-controlled sources
+    const sanitizeAndValidate = (data) => {
+      try {
+        return {
+          orderId: String(data.orderId || '').replace(/[^\w-]/g, '').slice(0, 50),
+          name: String(data.name || '').replace(/[<>]/g, '').trim().slice(0, 100),
+          phone: String(data.phone || '').replace(/[^\d+-\s]/g, '').slice(0, 20),
+          totalAmount: parseFloat(data.totalAmount) || 0,
+          items: Array.isArray(data.items) ? data.items.map(item => ({
+            id: String(item.id || '').slice(0, 50),
+            name: String(item.name || '').replace(/[<>]/g, '').trim().slice(0, 100),
+            quantity: Math.max(0, parseInt(item.quantity, 10) || 0),
+            price: Math.max(0, parseFloat(item.price) || 0)
+          })) : []
+        };
+      } catch (err) {
+        console.error("Order validation failed", err);
+        return null;
+      }
+    };
+
+    const validatedOrder = sanitizeAndValidate(rawOrder);
+
+    if (validatedOrder && validatedOrder.orderId) {
+      setOrder(validatedOrder);
       
-      // Fire Meta Pixel Purchase Event
+      // Fire Meta Pixel Purchase Event with validated data
       if (window.fbq) {
         window.fbq('track', 'Purchase', {
-          value: parsedOrder.totalAmount,
+          value: validatedOrder.totalAmount,
           currency: 'PKR'
         });
       }
-      
-      sessionStorage.removeItem('lastOrder');
+    } else {
+      navigate('/', { replace: true });
     }
-  }, []);
+
+    // Clean up: If the previous page used sessionStorage, we ensure it's cleared immediately
+    sessionStorage.removeItem('lastOrder');
+  }, [location.state, navigate]);
+
+  if (!order) return null;
 
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center pt-20 pb-16 px-4">
@@ -31,7 +77,6 @@ export default function Success() {
         transition={{ duration: 0.5 }}
         className="max-w-lg w-full text-center"
       >
-        {/* Animated Checkmark */}
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -77,54 +122,52 @@ export default function Success() {
           We'll confirm it shortly via phone.
         </motion.p>
 
-        {order && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-white rounded-2xl p-6 shadow-card border border-beige/30 mb-8 text-left"
-          >
-            <h3 className="font-display text-lg font-bold text-rich-brown mb-4">
-              Order Details
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span style={{ color: 'rgba(92,61,46,0.6)' }}>Order ID</span>
-                <span className="font-mono font-semibold text-gold">{order.orderId}</span>
-              </div>
-              <div className="flex justify-between">
-                <span style={{ color: 'rgba(92,61,46,0.6)' }}>Name</span>
-                <span className="font-medium text-rich-brown">{order.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span style={{ color: 'rgba(92,61,46,0.6)' }}>Phone</span>
-                <span className="font-medium text-rich-brown">{order.phone}</span>
-              </div>
-
-              {order.items && (
-                <div className="border-t border-beige pt-3 mt-3">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex justify-between py-1">
-                      <span style={{ color: 'rgba(92,61,46,0.7)' }}>
-                        {item.name} × {item.quantity}
-                      </span>
-                      <span className="font-medium text-rich-brown">
-                        ₨{(item.price * item.quantity).toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="border-t border-beige pt-3 mt-3 flex justify-between">
-                <span className="font-semibold text-rich-brown">Total</span>
-                <span className="font-display text-xl font-bold text-gold">
-                  ₨{order.totalAmount?.toLocaleString()}
-                </span>
-              </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="bg-white rounded-2xl p-6 shadow-card border border-beige/30 mb-8 text-left"
+        >
+          <h3 className="font-display text-lg font-bold text-rich-brown mb-4">
+            Order Details
+          </h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span style={{ color: 'rgba(92,61,46,0.6)' }}>Order ID</span>
+              <span className="font-mono font-semibold text-gold">{order.orderId}</span>
             </div>
-          </motion.div>
-        )}
+            <div className="flex justify-between">
+              <span style={{ color: 'rgba(92,61,46,0.6)' }}>Name</span>
+              <span className="font-medium text-rich-brown">{order.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: 'rgba(92,61,46,0.6)' }}>Phone</span>
+              <span className="font-medium text-rich-brown">{order.phone}</span>
+            </div>
+
+            {order.items && order.items.length > 0 && (
+              <div className="border-t border-beige pt-3 mt-3">
+                {order.items.map((item, idx) => (
+                  <div key={`${item.id}-${idx}`} className="flex justify-between py-1">
+                    <span style={{ color: 'rgba(92,61,46,0.7)' }}>
+                      {item.name} × {item.quantity}
+                    </span>
+                    <span className="font-medium text-rich-brown">
+                      ₨{(item.price * item.quantity).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="border-t border-beige pt-3 mt-3 flex justify-between">
+              <span className="font-semibold text-rich-brown">Total</span>
+              <span className="font-display text-xl font-bold text-gold">
+                ₨{order.totalAmount.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0 }}
