@@ -19,10 +19,29 @@ export default function CheckoutForm() {
   });
 
   useEffect(() => {
-    // In a real application, fetch the CSRF token from the server on mount
-    // or retrieve it from a secure cookie/meta tag.
-    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 'secure-token-placeholder';
-    setCsrfToken(token);
+    // Fetch CSRF token from server on component mount.
+    const fetchCsrfToken = async () => {
+      try {
+        const response = await fetch('/api/csrf', { // Replace '/api/csrf' with your actual endpoint
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch CSRF token');
+        }
+
+        const data = await response.json();
+        setCsrfToken(data.csrfToken);
+      } catch (error) {
+        console.error('Error fetching CSRF token:', error);
+        setGlobalError('Failed to load security token. Please refresh the page.');
+      }
+    };
+
+    fetchCsrfToken();
   }, []);
 
   const validate = () => {
@@ -72,18 +91,18 @@ export default function CheckoutForm() {
 
     try {
       const order = createOrder(formData, cart);
-      
-      // Ensure the order is submitted with CSRF protection and proper CORS configuration
-      // We do not use 'no-cors' to ensure we can read the server's success/failure response.
+
+      // Submit order with CSRF token. The submitOrder function should handle setting the CSRF header.
       const result = await submitOrder(order, csrfToken);
 
       if (result && result.success) {
-        // Clear sensitive data from memory and avoid storing PII in sessionStorage/localStorage
+        // Clear sensitive data from memory
         clearCart();
         // Pass only the non-sensitive order ID via navigation state if needed for the success page
         navigate('/success', { state: { orderId: result.orderId }, replace: true });
       } else {
-        throw new Error(result?.message || 'Server failed to process the order.');
+        // Use a generic error message to prevent information leakage.
+        throw new Error('Failed to process your order. Please try again.');
       }
     } catch (error) {
       console.error('Order submission failed:', error);

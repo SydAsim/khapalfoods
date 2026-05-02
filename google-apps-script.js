@@ -11,14 +11,23 @@
  * 
  * 4. Go to Extensions → Apps Script.
  * 5. Paste this code.
- * 6. UPDATE the 'AUTH_TOKEN' constant below with a long, random string.
+ * 6. UPDATE the 'AUTH_TOKEN' constant below using PropertiesService to store securely.
  * 7. UPDATE the 'PRODUCT_CATALOG' with your actual items and prices.
  * 8. Click Save, then Deploy → New deployment (Web app, Execute as: Me, Who has access: Anyone).
  * 9. In your frontend (src/utils/orders.js), ensure you send the 'authToken' in the POST body.
  */
 
-// SECURITY: Use a strong secret token to authenticate requests
-const AUTH_TOKEN = 'REPLACE_WITH_SECURE_UUID_OR_KEY';
+// SECURITY:  Use PropertiesService to store the auth token securely.
+// Initialize the token if it doesn't exist.  This only happens on first run or if the property is deleted.
+function initializeAuthToken() {
+  const scriptProperties = PropertiesService.getScriptProperties();
+  let authToken = scriptProperties.getProperty('AUTH_TOKEN');
+
+  if (!authToken) {
+    authToken = Utilities.getUuid(); // Generate a UUID.  Consider a more robust random key generator.
+    scriptProperties.setProperty('AUTH_TOKEN', authToken);
+  }
+}
 
 // SECURITY: Trusted server-side source of truth for pricing to prevent client-side manipulation
 const PRODUCT_CATALOG = {
@@ -48,8 +57,11 @@ function doPost(e) {
 
     const data = JSON.parse(e.postData.contents);
 
-    // VULNERABILITY FIX [Line 34 & 26]: Authenticate the request
-    if (!data.authToken || data.authToken !== AUTH_TOKEN) {
+    // SECURITY: Authenticate the request using the stored AUTH_TOKEN
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const authToken = scriptProperties.getProperty('AUTH_TOKEN');
+
+    if (!data.authToken || data.authToken !== authToken) {
       return ContentService
         .createTextOutput(JSON.stringify({ status: 'error', message: 'Unauthorized' }))
         .setMimeType(ContentService.MimeType.JSON);
@@ -58,7 +70,7 @@ function doPost(e) {
     let calculatedTotal = 0;
     const items = data.items || [];
 
-    // VULNERABILITY FIX [Line 54]: Server-side price calculation and validation
+    // SECURITY: Server-side price calculation and validation
     const itemsSummary = items.map(function(item) {
       const sanitizedName = sanitize(item.name);
       const unitPrice = PRODUCT_CATALOG[item.name] || 0;
@@ -72,14 +84,22 @@ function doPost(e) {
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
-    // VULNERABILITY FIX [Line 48]: Sanitize all user-provided strings before insertion
+    // SECURITY: Sanitize all user-provided strings before insertion
+    // Consider using parameterized queries if writing to a database instead of a spreadsheet.
+    const orderId = sanitize(data.orderId || '');
+    const name = sanitize(data.name || '');
+    const phone = sanitize(data.phone || '');
+    const email = sanitize(data.email || '');
+    const address = sanitize(data.address || '');
+
+
     sheet.appendRow([
       new Date(),                          // A: Date & Time
-      sanitize(data.orderId || ''),        // B: Order ID
-      sanitize(data.name || ''),           // C: Customer Name
-      sanitize(data.phone || ''),          // D: Phone Number
-      sanitize(data.email || ''),          // E: Email
-      sanitize(data.address || ''),        // F: Delivery Address
+      orderId,        // B: Order ID
+      name,           // C: Customer Name
+      phone,          // D: Phone Number
+      email,          // E: Email
+      address,        // F: Delivery Address
       itemsSummary,                        // G: Items (recalculated summary)
       calculatedTotal,                     // H: Total Amount (validated)
       'Pending'                            // I: Order Status
@@ -90,7 +110,7 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
-    // VULNERABILITY FIX [Line 64]: Return generic error to client, log details internally
+    // SECURITY: Return generic error to client, log details internally
     console.error('Order Error:', error.toString());
     
     return ContentService
@@ -103,6 +123,8 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  // Initialize the AUTH_TOKEN if it hasn't been already.  This is only needed for the first execution.
+  initializeAuthToken();
   return ContentService
     .createTextOutput('Khapal Foods Order API is active.')
     .setMimeType(ContentService.MimeType.TEXT);

@@ -1,34 +1,89 @@
 const CART_KEY = 'khapal_foods_cart';
 const CART_SIG = 'khapal_foods_cart_sig';
-// Note: In a production environment, this secret should be an environment variable 
-// and the signing process should ideally be more robust (e.g., HMAC-SHA256).
-const INTEGRITY_SECRET = 'secure_cart_integrity_token_v1';
+
+// In a production environment, store the secret securely, e.g., in environment variables or a secure configuration.
+// Ensure this value is unique and sufficiently random.  Consider using a library like 'crypto' to generate a cryptographically secure key.
+let INTEGRITY_SECRET;
+
+(async () => {
+  if (typeof window === 'undefined') {
+    // Server-side environment (e.g., Node.js)
+    INTEGRITY_SECRET = process.env.CART_INTEGRITY_SECRET || 'fallback_insecure_secret_PLEASE_REPLACE'; // Use environment variable in production
+  } else {
+    // Browser environment - generate a random secret if one doesn't exist in localStorage
+    INTEGRITY_SECRET = localStorage.getItem('cart_integrity_secret');
+    if (!INTEGRITY_SECRET) {
+      INTEGRITY_SECRET = generateRandomString(32); // 32 characters for reasonable security
+      localStorage.setItem('cart_integrity_secret', INTEGRITY_SECRET);
+    }
+  }
+
+  // Generate a random string for the secret (browser environment)
+  function generateRandomString(length) {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+  }
+})();
+
 
 /**
  * Validates and sanitizes cart item data to prevent XSS and logic tampering.
+ * Consider using a more robust sanitization library like DOMPurify for complex scenarios.
  */
 function sanitizeInput(value) {
   if (typeof value !== 'string') return value;
-  return value
-    .replace(/&/g, '&amp;')
+
+  const sanitized = value.replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
+
+    // Additional context-aware escaping or sanitization may be required here, 
+    // depending on how the data is used in the UI.  For example, if the data
+    // is used in attributes, attribute escaping might be necessary.
+
+  return sanitized;
 }
 
+
 /**
- * Generates a simple integrity signature for the cart data.
+ * Generates an HMAC-SHA256 signature for the cart data.
  */
-function generateSignature(cart) {
-  const dataStr = JSON.stringify(cart) + INTEGRITY_SECRET;
-  let hash = 0;
-  for (let i = 0; i < dataStr.length; i++) {
-    hash = ((hash << 5) - hash) + dataStr.charCodeAt(i);
-    hash |= 0;
+async function generateSignature(cart) {
+  if (typeof window !== 'undefined') {
+      //Browser
+      const dataStr = JSON.stringify(cart);
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+          "raw",
+          encoder.encode(INTEGRITY_SECRET),
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign", "verify"]
+      );
+      const signatureBuffer = await crypto.subtle.sign(
+          "HMAC",
+          key,
+          encoder.encode(dataStr)
+      );
+      const signatureArray = Array.from(new Uint8Array(signatureBuffer));
+      const signatureHex = signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return signatureHex;
+  } else {
+      //Server
+      const crypto = require('crypto');
+      const hmac = crypto.createHmac('sha256', INTEGRITY_SECRET);
+      hmac.update(JSON.stringify(cart));
+      return hmac.digest('hex');
   }
-  return hash.toString();
+
 }
+
 
 /**
  * Validates the schema and types of the cart data.
@@ -44,7 +99,7 @@ function validateCartSchema(cart) {
   }));
 }
 
-export function getCart() {
+async function getCart() {
   try {
     const rawCart = localStorage.getItem(CART_KEY);
     const signature = localStorage.getItem(CART_SIG);
@@ -52,9 +107,9 @@ export function getCart() {
     if (!rawCart || !signature) return [];
 
     const parsedCart = JSON.parse(rawCart);
-    const expectedSignature = generateSignature(parsedCart);
+    const expectedSignature = await generateSignature(parsedCart);
 
-    // Integrity check to prevent manual modification of price or other fields
+    // Integrity check using HMAC-SHA256
     if (signature !== expectedSignature) {
       console.error('Security Warning: Cart integrity check failed. Clearing cart.');
       clearCart();
@@ -62,64 +117,71 @@ export function getCart() {
     }
 
     return validateCartSchema(parsedCart);
-  } catch {
+  } catch (error) {
+    console.error("Error getting cart:", error);
     return [];
   }
 }
 
-export function saveCart(cart) {
+async function saveCart(cart) {
   const validatedCart = validateCartSchema(cart);
   const serializedCart = JSON.stringify(validatedCart);
-  const signature = generateSignature(validatedCart);
+  const signature = await generateSignature(validatedCart);
 
   localStorage.setItem(CART_KEY, serializedCart);
   localStorage.setItem(CART_SIG, signature);
 }
 
-export function addToCart(product) {
+export async function addToCart(product) {
   if (!product || !product.id) return getCart();
 
-  const cart = getCart();
+  const cart = await getCart();
   const productId = String(product.id);
   const existing = cart.find((item) => item.id === productId);
+
+  // The price must be validated on the server-side when the order is processed.
+  // Here, we omit price from the cart data stored in localStorage. The UI should
+  // request the current price from the server when displaying the cart contents.
+  const safeProduct = {
+    id: productId,
+    name: product.name,
+    quantity: 1,
+    image: product.image,
+  };
 
   if (existing) {
     existing.quantity += 1;
   } else {
-    cart.push({
-      id: productId,
-      name: product.name,
-      price: product.price, // Display only: final price must be verified server-side
-      quantity: 1,
-      image: product.image,
-    });
+    cart.push(safeProduct);
   }
 
-  saveCart(cart);
+  await saveCart(cart);
   return getCart();
 }
 
-export function removeFromCart(productId) {
+
+export async function removeFromCart(productId) {
   const idToMatch = String(productId);
-  const cart = getCart().filter((item) => item.id !== idToMatch);
-  saveCart(cart);
-  return cart;
+  const cart = await getCart();
+  const newCart = cart.filter((item) => item.id !== idToMatch);
+  await saveCart(newCart);
+  return newCart;
 }
 
-export function updateQuantity(productId, quantity) {
+export async function updateQuantity(productId, quantity) {
   const safeQuantity = Math.max(0, parseInt(quantity) || 0);
-  
+
   if (safeQuantity === 0) {
     return removeFromCart(productId);
   }
 
-  const cart = getCart();
+  const cart = await getCart();
   const idToMatch = String(productId);
   const item = cart.find((i) => i.id === idToMatch);
 
   if (item) {
     item.quantity = safeQuantity;
-    saveCart(cart);
+    await saveCart(cart);
   }
 
   return getCart();

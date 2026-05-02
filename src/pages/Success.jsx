@@ -29,17 +29,36 @@ export default function Success() {
     // Strict validation and sanitization of data from client-controlled sources
     const sanitizeAndValidate = (data) => {
       try {
+        const orderId = String(data.orderId || '').replace(/[^\w-]/g, '').slice(0, 50);
+        const name = String(data.name || '').replace(/[<>]/g, '').trim().slice(0, 100);
+        const phone = String(data.phone || '').replace(/[^\d+-\s]/g, '').slice(0, 20);
+        const totalAmount = parseFloat(data.totalAmount) || 0;
+        const items = Array.isArray(data.items) ? data.items.map(item => {
+          const itemId = String(item.id || '').slice(0, 50);
+          const itemName = String(item.name || '').replace(/[<>]/g, '').trim().slice(0, 100);
+          const quantity = Math.max(0, parseInt(item.quantity, 10) || 0);
+          const price = Math.max(0, parseFloat(item.price) || 0);
+          
+          return {
+            id: itemId,
+            name: itemName,
+            quantity: quantity,
+            price: price
+          };
+        }) : [];
+
+        // Validate the structure of the sanitized data
+        if (!orderId || !name || !phone || totalAmount < 0 || !Array.isArray(items)) {
+          console.error("Order data validation failed: Incomplete or invalid data");
+          return null;
+        }
+
         return {
-          orderId: String(data.orderId || '').replace(/[^\w-]/g, '').slice(0, 50),
-          name: String(data.name || '').replace(/[<>]/g, '').trim().slice(0, 100),
-          phone: String(data.phone || '').replace(/[^\d+-\s]/g, '').slice(0, 20),
-          totalAmount: parseFloat(data.totalAmount) || 0,
-          items: Array.isArray(data.items) ? data.items.map(item => ({
-            id: String(item.id || '').slice(0, 50),
-            name: String(item.name || '').replace(/[<>]/g, '').trim().slice(0, 100),
-            quantity: Math.max(0, parseInt(item.quantity, 10) || 0),
-            price: Math.max(0, parseFloat(item.price) || 0)
-          })) : []
+          orderId: orderId,
+          name: name,
+          phone: phone,
+          totalAmount: totalAmount,
+          items: items
         };
       } catch (err) {
         console.error("Order validation failed", err);
@@ -53,7 +72,7 @@ export default function Success() {
       setOrder(validatedOrder);
       
       // Fire Meta Pixel Purchase Event with validated data
-      if (window.fbq) {
+      if (typeof window.fbq === 'function') {
         window.fbq('track', 'Purchase', {
           value: validatedOrder.totalAmount,
           currency: 'PKR'

@@ -8,23 +8,19 @@ export default function Checkout() {
   const { cart, cartTotal } = useCart();
 
   useEffect(() => {
-    /**
-     * Security Fix: Robust check for global fbq tracking object.
-     * Prevents DOM-clobbering attacks where an attacker might inject an element 
-     * (e.g., <img id="fbq">) to overwrite the tracking function.
-     * Verifies that window.fbq exists and is a function before execution.
-     */
-    const isTrackingFunctionValid = 
-      typeof window !== 'undefined' && 
-      Object.prototype.hasOwnProperty.call(window, 'fbq') && 
-      typeof window.fbq === 'function';
+    // Use a more specific type check for fbq
+    const isFbqAvailable = typeof window !== 'undefined' && typeof window.fbq === 'function';
 
-    if (isTrackingFunctionValid && cart.length > 0) {
-      window.fbq('track', 'InitiateCheckout', {
-        value: Number(cartTotal) || 0,
-        currency: 'PKR',
-        num_items: Number(cart.length) || 0
-      });
+    if (isFbqAvailable && cart.length > 0) {
+      try {
+        window.fbq('track', 'InitiateCheckout', {
+          value: Number(cartTotal) || 0,
+          currency: 'PKR',
+          num_items: Number(cart.length) || 0
+        });
+      } catch (error) {
+        console.error("Failed to track InitiateCheckout:", error);
+      }
     }
   }, [cartTotal, cart.length]);
 

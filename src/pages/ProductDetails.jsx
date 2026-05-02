@@ -8,9 +8,10 @@ export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
-  
-  const product = products.find((p) => p.id === id);
-  
+
+  // Validate the product ID against the known product list
+  const product = products.find((p) => p.id === id && products.some(validProduct => validProduct.id === id));
+
   const [selectedVariant, setSelectedVariant] = useState(
     product ? product.variants[0] : null
   );
@@ -35,9 +36,9 @@ export default function ProductDetails() {
       price: selectedVariant.price,
       image: product.image,
     });
-    
+
     // Fire Meta Pixel AddToCart Event
-    if (window.fbq) {
+    if (typeof window.fbq === 'function') {
       window.fbq('track', 'AddToCart', {
         content_ids: [product.id],
         content_name: `${product.name} (${selectedVariant.name})`,
