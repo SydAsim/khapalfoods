@@ -1,50 +1,66 @@
 const CART_KEY = 'khapal_foods_cart';
 const CART_SIG = 'khapal_foods_cart_sig';
-// Note: In a production environment, this secret should be an environment variable 
-// and the signing process should ideally be more robust (e.g., HMAC-SHA256).
-const INTEGRITY_SECRET = 'secure_cart_integrity_token_v1';
 
-/**
- * Validates and sanitizes cart item data to prevent XSS and logic tampering.
- */
-function sanitizeInput(value) {
-  if (typeof value !== 'string') return value;
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
+// In a real-world scenario, this would be retrieved from a secure vault or environment variable.
+// For demonstration purposes, we're using a placeholder.
+// IMPORTANT: Never hardcode secrets in production code.
+async function getSecret() {
+  // Simulate fetching the secret from a secure source.
+  // In a real application, use a library like 'node-vault' or the AWS Secrets Manager SDK.
+  return 'this_is_a_very_long_and_complex_secret_key_for_hmac_v2';
 }
 
 /**
- * Generates a simple integrity signature for the cart data.
+ * Sanitizes a string to prevent basic XSS attacks.  More comprehensive
+ * sanitization or context-aware escaping is highly recommended.
  */
-function generateSignature(cart) {
-  const dataStr = JSON.stringify(cart) + INTEGRITY_SECRET;
-  let hash = 0;
-  for (let i = 0; i < dataStr.length; i++) {
-    hash = ((hash << 5) - hash) + dataStr.charCodeAt(i);
-    hash |= 0;
+function sanitizeInput(str) {
+  if (typeof str !== 'string') {
+    return str;
   }
-  return hash.toString();
+
+  // This is a basic example and might not cover all XSS attack vectors.
+  return str.replace(/[<>"'/]/g, function (match) {
+    switch (match) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      case "'": return '&#39;';
+      case '/': return '&#x2F;';
+      default: return match;
+    }
+  });
 }
 
 /**
- * Validates the schema and types of the cart data.
+ * Generates an HMAC-SHA256 signature for the cart data.
+ */
+async function generateSignature(cart, secret) {
+  const crypto = await import('crypto'); // Import crypto dynamically
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update(JSON.stringify(cart));
+  return hmac.digest('hex');
+}
+
+/**
+ * Validates the schema and types of the cart data, sanitizing inputs.
  */
 function validateCartSchema(cart) {
   if (!Array.isArray(cart)) return [];
-  return cart.map(item => ({
-    id: item.id ? String(item.id) : '',
-    name: sanitizeInput(String(item.name || '')),
-    price: typeof item.price === 'number' ? item.price : 0,
-    quantity: Math.max(0, parseInt(item.quantity) || 0),
-    image: sanitizeInput(String(item.image || '')),
-  }));
+
+  return cart.map(item => {
+    const safeId = typeof item.id === 'string' || typeof item.id === 'number' ? String(item.id) : '';
+    return {
+      id: safeId,
+      name: sanitizeInput(String(item.name || '')), // Sanitize name
+      price: 0, // Do not use client-provided price. Price MUST be fetched server-side.
+      quantity: Math.max(0, parseInt(item.quantity) || 0),
+      image: sanitizeInput(String(item.image || '')), // Sanitize image URL
+    };
+  });
 }
 
-export function getCart() {
+export async function getCart() {
   try {
     const rawCart = localStorage.getItem(CART_KEY);
     const signature = localStorage.getItem(CART_SIG);
@@ -52,9 +68,9 @@ export function getCart() {
     if (!rawCart || !signature) return [];
 
     const parsedCart = JSON.parse(rawCart);
-    const expectedSignature = generateSignature(parsedCart);
+    const secret = await getSecret();
+    const expectedSignature = await generateSignature(parsedCart, secret);
 
-    // Integrity check to prevent manual modification of price or other fields
     if (signature !== expectedSignature) {
       console.error('Security Warning: Cart integrity check failed. Clearing cart.');
       clearCart();
@@ -62,24 +78,26 @@ export function getCart() {
     }
 
     return validateCartSchema(parsedCart);
-  } catch {
+  } catch (error) {
+    console.error("Error getting cart:", error);
     return [];
   }
 }
 
-export function saveCart(cart) {
+export async function saveCart(cart) {
   const validatedCart = validateCartSchema(cart);
   const serializedCart = JSON.stringify(validatedCart);
-  const signature = generateSignature(validatedCart);
+  const secret = await getSecret();
+  const signature = await generateSignature(validatedCart, secret);
 
   localStorage.setItem(CART_KEY, serializedCart);
   localStorage.setItem(CART_SIG, signature);
 }
 
-export function addToCart(product) {
+export async function addToCart(product) {
   if (!product || !product.id) return getCart();
 
-  const cart = getCart();
+  const cart = await getCart();
   const productId = String(product.id);
   const existing = cart.find((item) => item.id === productId);
 
@@ -88,41 +106,43 @@ export function addToCart(product) {
   } else {
     cart.push({
       id: productId,
-      name: product.name,
-      price: product.price, // Display only: final price must be verified server-side
+      name: sanitizeInput(product.name),
+      price: 0, // IMPORTANT:  Always fetch the price from the server using the product ID.
       quantity: 1,
-      image: product.image,
+      image: sanitizeInput(product.image),
     });
   }
 
-  saveCart(cart);
-  return getCart();
+  await saveCart(cart);
+  return await getCart();
 }
 
-export function removeFromCart(productId) {
+
+export async function removeFromCart(productId) {
   const idToMatch = String(productId);
-  const cart = getCart().filter((item) => item.id !== idToMatch);
-  saveCart(cart);
-  return cart;
+  const cart = await getCart();
+  const filteredCart = cart.filter((item) => item.id !== idToMatch);
+  await saveCart(filteredCart);
+  return filteredCart;
 }
 
-export function updateQuantity(productId, quantity) {
+export async function updateQuantity(productId, quantity) {
   const safeQuantity = Math.max(0, parseInt(quantity) || 0);
-  
+
   if (safeQuantity === 0) {
     return removeFromCart(productId);
   }
 
-  const cart = getCart();
+  const cart = await getCart();
   const idToMatch = String(productId);
   const item = cart.find((i) => i.id === idToMatch);
 
   if (item) {
     item.quantity = safeQuantity;
-    saveCart(cart);
+    await saveCart(cart);
   }
 
-  return getCart();
+  return await getCart();
 }
 
 export function clearCart() {
