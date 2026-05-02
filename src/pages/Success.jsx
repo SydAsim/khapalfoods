@@ -29,17 +29,46 @@ export default function Success() {
     // Strict validation and sanitization of data from client-controlled sources
     const sanitizeAndValidate = (data) => {
       try {
+        if (!data || typeof data !== 'object') {
+          console.error("Invalid order data format");
+          return null;
+        }
+
+        const orderId = typeof data.orderId === 'string' ? data.orderId.replace(/[^\w-]/g, '').slice(0, 50) : '';
+        const name = typeof data.name === 'string' ? data.name.replace(/[<>]/g, '').trim().slice(0, 100) : '';
+        const phone = typeof data.phone === 'string' ? data.phone.replace(/[^\d+-\s]/g, '').slice(0, 20) : '';
+        const totalAmount = typeof data.totalAmount === 'number' ? parseFloat(data.totalAmount) : 0;
+
+        let items = [];
+        if (Array.isArray(data.items)) {
+          items = data.items.map(item => {
+            if (!item || typeof item !== 'object') return null;
+
+            const itemId = typeof item.id === 'string' ? item.id.slice(0, 50) : '';
+            const itemName = typeof item.name === 'string' ? item.name.replace(/[<>]/g, '').trim().slice(0, 100) : '';
+            const quantity = typeof item.quantity === 'number' ? Math.max(0, parseInt(item.quantity, 10) || 0) : 0;
+            const price = typeof item.price === 'number' ? Math.max(0, parseFloat(item.price) || 0) : 0;
+
+            return {
+              id: itemId,
+              name: itemName,
+              quantity: quantity,
+              price: price
+            };
+          }).filter(item => item !== null); // Remove invalid items
+        }
+
+        if (!orderId) {
+          console.error("Order ID is missing or invalid");
+          return null;
+        }
+          
         return {
-          orderId: String(data.orderId || '').replace(/[^\w-]/g, '').slice(0, 50),
-          name: String(data.name || '').replace(/[<>]/g, '').trim().slice(0, 100),
-          phone: String(data.phone || '').replace(/[^\d+-\s]/g, '').slice(0, 20),
-          totalAmount: parseFloat(data.totalAmount) || 0,
-          items: Array.isArray(data.items) ? data.items.map(item => ({
-            id: String(item.id || '').slice(0, 50),
-            name: String(item.name || '').replace(/[<>]/g, '').trim().slice(0, 100),
-            quantity: Math.max(0, parseInt(item.quantity, 10) || 0),
-            price: Math.max(0, parseFloat(item.price) || 0)
-          })) : []
+          orderId: orderId,
+          name: name,
+          phone: phone,
+          totalAmount: totalAmount,
+          items: items
         };
       } catch (err) {
         console.error("Order validation failed", err);

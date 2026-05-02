@@ -11,14 +11,16 @@
  * 
  * 4. Go to Extensions → Apps Script.
  * 5. Paste this code.
- * 6. UPDATE the 'AUTH_TOKEN' constant below with a long, random string.
+ * 6. The script now uses a Script Property for authentication.  Set this using:
+ *    File -> Project Properties -> Script Properties.  Add a property named AUTH_TOKEN
+ *    with a long, random string value.
  * 7. UPDATE the 'PRODUCT_CATALOG' with your actual items and prices.
  * 8. Click Save, then Deploy → New deployment (Web app, Execute as: Me, Who has access: Anyone).
  * 9. In your frontend (src/utils/orders.js), ensure you send the 'authToken' in the POST body.
  */
 
-// SECURITY: Use a strong secret token to authenticate requests
-const AUTH_TOKEN = 'REPLACE_WITH_SECURE_UUID_OR_KEY';
+// SECURITY:  Authentication token is now stored as a Script Property.
+// No longer hardcoded in the script.
 
 // SECURITY: Trusted server-side source of truth for pricing to prevent client-side manipulation
 const PRODUCT_CATALOG = {
@@ -29,16 +31,25 @@ const PRODUCT_CATALOG = {
 
 /**
  * Sanitizes input to prevent Spreadsheet Injection (CSV Injection).
- * Prepend a single quote if the string starts with formula-triggering characters.
+ * Uses a more robust approach by escaping potentially dangerous characters and sequences.
  */
 function sanitize(value) {
   if (typeof value !== 'string') return value;
-  const formulaTriggers = ['=', '+', '-', '@', '\t', '\r'];
-  if (formulaTriggers.some(char => value.indexOf(char) === 0)) {
-    return "'" + value;
-  }
-  return value;
+
+  // Escape common spreadsheet injection characters and sequences.
+  let sanitizedValue = value.replace(/=/g, '="="'); // Escape equals
+  sanitizedValue = sanitizedValue.replace(/\+/g, '"+"'); // Escape plus
+  sanitizedValue = sanitizedValue.replace(/-/g, '"-"'); // Escape minus
+  sanitizedValue = sanitizedValue.replace(/@/g, '"@"'); // Escape at
+  sanitizedValue = sanitizedValue.replace(/\t/g, '"\\t"'); // Escape tab
+  sanitizedValue = sanitizedValue.replace(/\r/g, '"\\r"'); // Escape carriage return
+
+  // Additional escaping for other potentially harmful characters (e.g., formula delimiters)
+  sanitizedValue = sanitizedValue.replace(/\|/g, '"|"');
+
+  return sanitizedValue;
 }
+
 
 function doPost(e) {
   try {
@@ -49,7 +60,9 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
 
     // VULNERABILITY FIX [Line 34 & 26]: Authenticate the request
-    if (!data.authToken || data.authToken !== AUTH_TOKEN) {
+    const authToken = PropertiesService.getScriptProperties().getProperty('AUTH_TOKEN');
+
+    if (!data.authToken || data.authToken !== authToken) {
       return ContentService
         .createTextOutput(JSON.stringify({ status: 'error', message: 'Unauthorized' }))
         .setMimeType(ContentService.MimeType.JSON);
@@ -73,13 +86,19 @@ function doPost(e) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
     // VULNERABILITY FIX [Line 48]: Sanitize all user-provided strings before insertion
+    const sanitizedOrderId = sanitize(data.orderId || '');
+    const sanitizedName = sanitize(data.name || '');
+    const sanitizedPhone = sanitize(data.phone || '');
+    const sanitizedEmail = sanitize(data.email || '');
+    const sanitizedAddress = sanitize(data.address || '');
+        
     sheet.appendRow([
       new Date(),                          // A: Date & Time
-      sanitize(data.orderId || ''),        // B: Order ID
-      sanitize(data.name || ''),           // C: Customer Name
-      sanitize(data.phone || ''),          // D: Phone Number
-      sanitize(data.email || ''),          // E: Email
-      sanitize(data.address || ''),        // F: Delivery Address
+      sanitizedOrderId,                    // B: Order ID
+      sanitizedName,                       // C: Customer Name
+      sanitizedPhone,                      // D: Phone Number
+      sanitizedEmail,                      // E: Email
+      sanitizedAddress,                    // F: Delivery Address
       itemsSummary,                        // G: Items (recalculated summary)
       calculatedTotal,                     // H: Total Amount (validated)
       'Pending'                            // I: Order Status

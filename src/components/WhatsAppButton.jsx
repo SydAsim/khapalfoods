@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion';
 
 export default function WhatsAppButton() {
-  // Replace the leading 0 with the country code 92 for Pakistan
-  const phoneNumber = "923237870613";
-  const message = "Hello! I'm interested in Khapal Foods products.";
-  
+  // Use environment variables for sensitive configuration
+  const phoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER || "923237870613"; // Default value in case env variable is not set
+  const message = process.env.NEXT_PUBLIC_WHATSAPP_MESSAGE || "Hello! I'm interested in Khapal Foods products.";
+
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
   return (

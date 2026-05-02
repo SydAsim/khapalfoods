@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useCart } from '../context/CartContext';
@@ -18,11 +18,28 @@ export default function CheckoutForm() {
     address: '',
   });
 
+  // useRef to hold sensitive data temporarily
+  const orderDetails = useRef(null);
+
   useEffect(() => {
-    // In a real application, fetch the CSRF token from the server on mount
-    // or retrieve it from a secure cookie/meta tag.
-    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 'secure-token-placeholder';
-    setCsrfToken(token);
+    // Fetch CSRF token from the server
+    const fetchCsrfToken = async () => {
+      try {
+        const response = await fetch('/api/csrf'); // Replace with your API endpoint
+        if (!response.ok) {
+          throw new Error('Failed to fetch CSRF token');
+        }
+        const data = await response.json();
+        setCsrfToken(data.csrfToken);
+      } catch (error) {
+        console.error('CSRF Token Error:', error);
+        setGlobalError('Failed to load security token. Please refresh the page.');
+        // Consider a more user-friendly fallback if token cannot be fetched.
+        // E.g., disable the submit button and show an informative message.
+      }
+    };
+
+    fetchCsrfToken();
   }, []);
 
   const validate = () => {
@@ -72,13 +89,18 @@ export default function CheckoutForm() {
 
     try {
       const order = createOrder(formData, cart);
-      
+      orderDetails.current = order; // Store sensitive order details in useRef
+
       // Ensure the order is submitted with CSRF protection and proper CORS configuration
-      // We do not use 'no-cors' to ensure we can read the server's success/failure response.
+      // The 'credentials: "include"' option is required to send cookies with the request.
       const result = await submitOrder(order, csrfToken);
 
       if (result && result.success) {
-        // Clear sensitive data from memory and avoid storing PII in sessionStorage/localStorage
+        // Clear sensitive data from memory
+        orderDetails.current = null;
+        // Clear sensitive data from form state
+        setFormData({ name: '', phone: '', email: '', address: '' });
+
         clearCart();
         // Pass only the non-sensitive order ID via navigation state if needed for the success page
         navigate('/success', { state: { orderId: result.orderId }, replace: true });
@@ -118,9 +140,17 @@ export default function CheckoutForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6" id="checkout-form">
       {/* Anti-CSRF Token */}
-      <input type="hidden" name="_csrf" value={csrfToken} />
-
-      {globalError && (
+      {csrfToken && <input type="hidden" name="_csrf" value={csrfToken} />}
+      {!csrfToken && globalError && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }}
+            className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+          >
+            {globalError}
+          </motion.div>
+        )}
+      {globalError && !csrfToken && (
         <motion.div 
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }}
@@ -247,9 +277,9 @@ export default function CheckoutForm() {
         whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
         whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !csrfToken}
         className={`w-full py-4 rounded-full font-semibold text-lg transition-all duration-300 ${
-          isSubmitting
+          (isSubmitting || !csrfToken)
             ? 'bg-warm-brown/40 text-white cursor-not-allowed'
             : 'btn-primary'
         }`}
